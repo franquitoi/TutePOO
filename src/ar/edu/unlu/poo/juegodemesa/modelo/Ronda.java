@@ -105,7 +105,13 @@ public class Ronda {
             puntosBaza += c.getPuntos();
         }
 
-        boolean esUltimaBaza = mazoEnJuego.estaVacio() && jugadoresEnRonda.get(0).getMano().isEmpty();
+        // cuento cuántas cartas quedan en TOTAL en las manos de los jugadores
+        int cartasRestantesEnManos = 0;
+        for (Jugador j : jugadoresEnRonda) {
+            cartasRestantesEnManos += j.getMano().size();
+        }
+
+        boolean esUltimaBaza = mazoEnJuego.estaVacio() && cartasRestantesEnManos == 1;
 
         // en el caso de ser la ultima baza de todas, sumo 10 al ganador (guardo estado en atributo)
         if (esUltimaBaza) {
@@ -115,13 +121,14 @@ public class Ronda {
             this.diezUltimasSumadas = false;
         }
 
+        this.jugadorGanadorParcial.sumarPuntos(puntosBaza); // sumo puntos al ganador
 
         this.puntosUltimaBaza = puntosBaza;
         this.ganadorUltimaBaza = this.jugadorGanadorParcial;
         this.bazaRecienTerminada = true; // se levanta la bandera
         this.jugadorMano = this.jugadorGanadorParcial; // cambio de mano al ganador
         this.indiceTurnoActual = this.jugadoresEnRonda.indexOf(this.jugadorGanadorParcial);
-        this.jugadorGanadorParcial.sumarPuntos(puntosBaza); // sumo puntos al ganador
+
 
 
         // logica que revisa con el gestor de cantos, si tienen canto
@@ -207,7 +214,31 @@ public class Ronda {
 
         // regla 3: juega mismo palo que el anterior?
         if (cartaJugada.getPalo().equals(paloSalida)) {
-            return true; // es el mismo palo del anterior
+            Carta cartaGanadora = cartasEnJuego.get(this.jugadorGanadorParcial);
+
+            // la carta que va ganando es del palo de salida???
+            // (si alguien ya "falló" con triunfo, la ganadora no será del palo de salida, en ese caso solo estamos obligados a asistir, no a montar).
+            if (cartaGanadora.getPalo().equals(paloSalida)) {
+
+                int valorGanador = cartaGanadora.getValor();
+
+                // tengo en mi mano alguna carta que le gane a la de la mesa???
+                boolean puedoSuperar = jugadorPuedeSuperar(mano, paloSalida, valorGanador);
+
+                if (puedoSuperar) {
+                    // SI PUEDO SUPERAR, ESTOY OBLIGADO A HACERLO
+                    if (cartaJugada.getValor() > valorGanador) {
+                        return true;
+                    } else {
+                        return false; // MAL JUGADO: tenías para matar y tiraste una baja (Renuncio).
+                    }
+                } else {
+                    // SI NO PUEDO SUPERAR
+                    return true; // puedo tirar cualquiera, siempre que sea del palo.
+                }
+            } else {
+                return true;
+            }
         }
 
         // regla 4: no jugó al palo. ¿tenía para jugar al palo?
@@ -253,6 +284,17 @@ public class Ronda {
         // 5. ninguna es triunfo y nueva no es del palo de 'vieja' (que es la de salida)
         // la 'nueva' "falló" y no mata.
         return false;
+    }
+
+    private boolean jugadorPuedeSuperar(List<Carta> mano, String palo, int valorASuperar) {
+        for (Carta c : mano) {
+            if (c.getPalo().equals(palo)) {
+                if (c.getValor() > valorASuperar) {
+                    return true; // Sí, tiene una carta más alta
+                }
+            }
+        }
+        return false; // No tiene nada más alto (o no tiene del palo)
     }
 
     //metodo que se fija si el jugador tiene en la mano alguna carta del mismo palo
